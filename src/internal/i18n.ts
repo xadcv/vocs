@@ -37,6 +37,7 @@ export function from(options: I18nOptions | undefined): I18nConfig | undefined {
   if (!locales?.length) throw new Error('i18n.locales must contain at least one locale')
 
   const seen = new Set<string>()
+  const seenLanguages = new Set<string>()
   const normalizedLocales = locales.map((locale) => {
     if (!locale.code) throw new Error('i18n.locales[].code is required')
     if (!localeCodePattern.test(locale.code)) {
@@ -49,10 +50,21 @@ export function from(options: I18nOptions | undefined): I18nConfig | undefined {
     }
     seen.add(locale.code)
     if (!locale.label) throw new Error(`i18n.locales[].label is required for "${locale.code}"`)
+    const lang = locale.lang ?? locale.code
+    try {
+      Intl.getCanonicalLocales(lang)
+    } catch {
+      throw new Error(`i18n.locales[].lang "${lang}" is not a valid BCP 47 language tag`)
+    }
+    const normalizedLang = lang.toLowerCase()
+    if (seenLanguages.has(normalizedLang)) {
+      throw new Error(`i18n.locales contains duplicate language tag "${lang}"`)
+    }
+    seenLanguages.add(normalizedLang)
     return {
       code: locale.code,
       label: locale.label,
-      lang: locale.lang ?? locale.code,
+      lang,
       ...(locale.dir ? { dir: locale.dir } : {}),
     }
   })

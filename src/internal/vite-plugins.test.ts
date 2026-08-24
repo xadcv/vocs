@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import type { ResolvedConfig } from 'vite'
 import { afterEach, describe, expect, test } from 'vitest'
 import type * as Config from './config.js'
+import * as I18n from './i18n.js'
 import type * as OpenApi from './openapi/index.js'
 import {
   openapiClientDocument,
@@ -204,6 +205,34 @@ describe('sitemap', () => {
     expect(sitemapXml).toMatch(
       /<url>\n\s*<loc>https:\/\/example\.com\/changelog<\/loc>\n\s*<lastmod>2025-01-01<\/lastmod>\n\s*<\/url>/,
     )
+  })
+
+  test('includes every translated URL with reciprocal escaped alternates', async () => {
+    const fixture = await createFixture()
+    await fs.mkdir(path.join(fixture.rootDir, 'src/pages/en'), { recursive: true })
+    await fs.mkdir(path.join(fixture.rootDir, 'src/pages/fr'), { recursive: true })
+    await fs.writeFile(path.join(fixture.rootDir, 'src/pages/en/guide.mdx'), '# Guide\n')
+    await fs.writeFile(path.join(fixture.rootDir, 'src/pages/fr/guide.mdx'), '# Guide\n')
+    const i18n = I18n.from({
+      defaultLocale: 'en',
+      locales: [
+        { code: 'en', label: 'English', lang: 'en' },
+        { code: 'fr', label: 'Français', lang: 'fr' },
+      ],
+    })
+    if (!i18n) throw new Error('expected i18n config')
+    const plugin = createSitemapPlugin(fixture.rootDir, fixture.publicDir, {
+      baseUrl: 'https://example.com/?a=1&b=2',
+      i18n,
+    })
+
+    await plugin.writeBundle({ dir: fixture.outDir })
+
+    const sitemapXml = await fs.readFile(path.join(fixture.outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemapXml).toContain('<loc>https://example.com/?a=1&amp;b=2/en/guide</loc>')
+    expect(sitemapXml).toContain('<loc>https://example.com/?a=1&amp;b=2/fr/guide</loc>')
+    expect(sitemapXml.match(/hreflang="x-default"/g)).toHaveLength(2)
+    expect(sitemapXml.match(/hreflang="fr"/g)).toHaveLength(2)
   })
 
   test('disables generated sitemap and robots files', async () => {

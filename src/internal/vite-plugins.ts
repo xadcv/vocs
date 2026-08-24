@@ -462,24 +462,29 @@ export function sitemap(config: Config.Config): PluginOption {
     }
 
     const indent = '  '
-    const canonicalUrls = config.i18n
-      ? [...logicalPaths.entries()].map(([logical, group]) => {
+    const i18nConfig = config.i18n
+    const canonicalUrls = i18nConfig
+      ? urls.map((url) => {
+          const logical = I18n.stripLocale(url.pagePath, i18nConfig)
+          const group = logicalPaths.get(logical) ?? [url]
           const existingLocales = new Set<string>()
           for (const entry of group) {
-            const locale = I18n.parseLocale(entry.pagePath, config.i18n)
+            const locale = I18n.parseLocale(entry.pagePath, i18nConfig)
             if (locale) existingLocales.add(locale)
-            else if (config.i18n?.hideLocale === 'default-locale') {
-              existingLocales.add(config.i18n.defaultLocale)
+            else if (i18nConfig.hideLocale === 'default-locale') {
+              existingLocales.add(i18nConfig.defaultLocale)
             }
           }
-          const representative =
-            group.find((entry) => I18n.getPublicPath(entry.pagePath, config.i18n) === logical) ??
-            group[0]
-          if (!representative) return undefined
+          const alternates = I18n.getAlternates(logical, i18nConfig, { existingLocales })
+          const defaultLocale = i18nConfig.locales.find(
+            (locale) => locale.code === i18nConfig.defaultLocale,
+          )
+          const defaultHref =
+            defaultLocale && alternates?.[defaultLocale.lang ?? defaultLocale.code]
           return {
-            alternates: I18n.getAlternates(logical, config.i18n, { existingLocales }),
-            lastmod: representative.lastmod,
-            loc: representative.loc,
+            alternates: defaultHref ? { ...alternates, 'x-default': defaultHref } : alternates,
+            lastmod: url.lastmod,
+            loc: url.loc,
           }
         })
       : urls
@@ -490,14 +495,14 @@ export function sitemap(config: Config.Config): PluginOption {
         const alternateLinks = alternates
           ? Object.entries(alternates).map(
               ([hreflang, hrefPath]) =>
-                `${indent}${indent}<xhtml:link rel="alternate" hreflang="${hreflang}" href="${siteOrigin}${publicBasePath}${hrefPath}" />`,
+                `${indent}${indent}<xhtml:link rel="alternate" hreflang="${escapeXml(hreflang)}" href="${escapeXml(`${siteOrigin}${publicBasePath}${hrefPath}`)}" />`,
             )
           : []
 
         return [
           `${indent}<url>`,
-          `${indent}${indent}<loc>${loc}</loc>`,
-          lastmod ? `${indent}${indent}<lastmod>${lastmod}</lastmod>` : undefined,
+          `${indent}${indent}<loc>${escapeXml(loc)}</loc>`,
+          lastmod ? `${indent}${indent}<lastmod>${escapeXml(lastmod)}</lastmod>` : undefined,
           ...alternateLinks,
           `${indent}</url>`,
         ]
@@ -576,6 +581,16 @@ export function sitemap(config: Config.Config): PluginOption {
       await Promise.all(writes)
     },
   }
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    if (character === '&') return '&amp;'
+    if (character === '<') return '&lt;'
+    if (character === '>') return '&gt;'
+    if (character === '"') return '&quot;'
+    return '&apos;'
+  })
 }
 
 export function resolveSitemapInclude(

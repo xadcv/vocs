@@ -56,6 +56,25 @@ describe('from', () => {
       }),
     ).toThrow('duplicate code')
   })
+
+  test('rejects invalid and duplicate language tags', () => {
+    expect(() =>
+      I18n.from({
+        defaultLocale: 'en',
+        locales: [{ code: 'en', label: 'English', lang: 'en" onload="alert(1)' }],
+      }),
+    ).toThrow('not a valid BCP 47 language tag')
+
+    expect(() =>
+      I18n.from({
+        defaultLocale: 'en',
+        locales: [
+          { code: 'en', label: 'English', lang: 'en-US' },
+          { code: 'fr', label: 'Français', lang: 'EN-us' },
+        ],
+      }),
+    ).toThrow('duplicate language tag')
+  })
 })
 
 describe('parseLocale', () => {
