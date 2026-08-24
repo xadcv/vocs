@@ -275,6 +275,7 @@ export namespace SearchIndex {
       .replace(/^\//, '/')
 
     const category = SearchDocuments.findCategory(href, config.topNav)
+    const locale = I18n.parseLocale(href, config.i18n)
     const newIds: string[] = []
 
     for (const section of sections) {
@@ -284,6 +285,7 @@ export namespace SearchIndex {
         category,
         href: section.anchor ? `${href}#${section.anchor}` : href,
         id,
+        locale,
         searchPriority,
         subtitle: section.subtitle,
         text: section.text,

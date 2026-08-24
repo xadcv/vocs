@@ -55,7 +55,7 @@ export function Root_client({ children }: { children: React.ReactNode }) {
     const html = document.documentElement
     if (locale) {
       html.lang = locale.lang ?? locale.code
-      if (locale.dir) html.dir = locale.dir
+      html.dir = locale.dir ?? 'ltr'
     }
   }, [locale])
 

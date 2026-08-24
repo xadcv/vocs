@@ -424,12 +424,15 @@ export function sitemap(config: Config.Config): PluginOption {
 
         if (!resolveSitemapInclude(config, pagePath, filePath)) return
 
-        const loc = `${siteUrl.replace(/\/$/, '')}${pagePath}`
         const gitDate = Git.getLastModified(page)
         const lastmod = gitDate
           ? (gitDate.split('T')[0] as string)
           : ((await fs.stat(page)).mtime.toISOString().split('T')[0] as string)
         const resolvedLastmod = resolveSitemapLastmod(config, pagePath, filePath, lastmod)
+        const publicPath = config.i18n ? I18n.getPublicPath(pagePath, config.i18n) : pagePath
+        const publicBasePath =
+          config.basePath && config.basePath !== '/' ? config.basePath.replace(/\/$/, '') : ''
+        const loc = `${siteUrl.replace(/\/$/, '')}${publicBasePath}${publicPath}`
 
         urls.push({
           alternates: I18n.getAlternates(pagePath, config.i18n),
@@ -444,6 +447,10 @@ export function sitemap(config: Config.Config): PluginOption {
 
     urls.sort((a, b) => a.loc.localeCompare(b.loc))
 
+    const siteOrigin = siteUrl.replace(/\/$/, '')
+    const publicBasePath =
+      config.basePath && config.basePath !== '/' ? config.basePath.replace(/\/$/, '') : ''
+
     const logicalPaths = new Map<string, typeof urls>()
     if (config.i18n) {
       for (const url of urls) {
@@ -455,26 +462,37 @@ export function sitemap(config: Config.Config): PluginOption {
     }
 
     const indent = '  '
-    const entries = urls
-      .map(({ alternates, lastmod, loc, pagePath }) => {
-        const logical = config.i18n ? I18n.stripLocale(pagePath, config.i18n) : undefined
-        const group = logical ? logicalPaths.get(logical) : undefined
-        const alternateLinks =
-          config.i18n && group && group.length > 1
-            ? group.flatMap((entry) => {
-                const entryAlternates = I18n.getAlternates(entry.pagePath, config.i18n)
-                if (!entryAlternates) return []
-                return Object.entries(entryAlternates).map(
-                  ([hreflang, hrefPath]) =>
-                    `${indent}${indent}<xhtml:link rel="alternate" hreflang="${hreflang}" href="${siteUrl.replace(/\/$/, '')}${hrefPath}" />`,
-                )
-              })
-            : alternates
-              ? Object.entries(alternates).map(
-                  ([hreflang, hrefPath]) =>
-                    `${indent}${indent}<xhtml:link rel="alternate" hreflang="${hreflang}" href="${siteUrl.replace(/\/$/, '')}${hrefPath}" />`,
-                )
-              : []
+    const canonicalUrls = config.i18n
+      ? [...logicalPaths.entries()].map(([logical, group]) => {
+          const existingLocales = new Set<string>()
+          for (const entry of group) {
+            const locale = I18n.parseLocale(entry.pagePath, config.i18n)
+            if (locale) existingLocales.add(locale)
+            else if (config.i18n?.hideLocale === 'default-locale') {
+              existingLocales.add(config.i18n.defaultLocale)
+            }
+          }
+          const representative =
+            group.find((entry) => I18n.getPublicPath(entry.pagePath, config.i18n) === logical) ??
+            group[0]
+          if (!representative) return undefined
+          return {
+            alternates: I18n.getAlternates(logical, config.i18n, { existingLocales }),
+            lastmod: representative.lastmod,
+            loc: representative.loc,
+          }
+        })
+      : urls
+
+    const entries = canonicalUrls
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined)
+      .map(({ alternates, lastmod, loc }) => {
+        const alternateLinks = alternates
+          ? Object.entries(alternates).map(
+              ([hreflang, hrefPath]) =>
+                `${indent}${indent}<xhtml:link rel="alternate" hreflang="${hreflang}" href="${siteOrigin}${publicBasePath}${hrefPath}" />`,
+            )
+          : []
 
         return [
           `${indent}<url>`,

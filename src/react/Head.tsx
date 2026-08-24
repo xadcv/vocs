@@ -34,7 +34,9 @@ export function Head(props: Head.Props) {
   const descriptionSource =
     typeof meta.description === 'string' ? meta.description : baseDescription
 
-  const fullPathname = basePath && basePath !== '/' ? `${basePath}${pathname}` : pathname
+  const publicPathname = I18n.getPublicPath(pathname, i18n)
+  const fullPathname =
+    basePath && basePath !== '/' ? `${basePath}${publicPathname}` : publicPathname
   const canonicalDefault = baseUrl ? `${baseUrl}${fullPathname}` : undefined
   const canonicalSource = typeof head.canonical === 'string' ? head.canonical : canonicalDefault
 
@@ -88,13 +90,18 @@ export function Head(props: Head.Props) {
       : undefined
 
   const alternates = I18n.getAlternates(pathname, i18n)
+  const siteOrigin = baseUrl?.replace(/\/$/, '') ?? ''
+  const withBasePath = (path: string) =>
+    basePath && basePath !== '/' ? `${basePath}${path}` : path
   const hreflangLinks =
-    alternates && baseUrl
+    alternates && siteOrigin
       ? Object.entries(alternates).map(([hreflang, path]) => ({
-          href: `${baseUrl.replace(/\/$/, '')}${path}`,
+          href: `${siteOrigin}${withBasePath(path)}`,
           hreflang,
         }))
       : []
+  const defaultLocaleLang =
+    i18n?.locales.find((entry) => entry.code === i18n.defaultLocale)?.lang ?? i18n?.defaultLocale
 
   const metaTags = unpackMeta(
     compactMeta({
@@ -146,10 +153,10 @@ export function Head(props: Head.Props) {
           {hreflangLinks.map((link) => (
             <link key={link.hreflang} href={link.href} hrefLang={link.hreflang} rel="alternate" />
           ))}
-          {hreflangLinks.length > 0 && i18n && (
+          {hreflangLinks.length > 0 && i18n && defaultLocaleLang && (
             <link
               href={
-                hreflangLinks.find((link) => link.hreflang === i18n.defaultLocale)?.href ??
+                hreflangLinks.find((link) => link.hreflang === defaultLocaleLang)?.href ??
                 hreflangLinks[0]?.href
               }
               hrefLang="x-default"

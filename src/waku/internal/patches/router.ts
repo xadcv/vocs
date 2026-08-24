@@ -1,6 +1,7 @@
 import { createElement, type FunctionComponent, lazy, type ReactNode } from 'react'
 import { createPages } from 'waku/router/server'
 import type { Frontmatter } from '../../../internal/config.js'
+import * as I18n from '../../../internal/i18n.js'
 import { groupPath } from '../../../internal/openapi/route.js'
 import * as DedupeHead from '../dedupe-head.js'
 import {
@@ -161,6 +162,21 @@ export function router(
           !openapiRoutePaths.has(path) &&
           (config.openapi ?? []).some((entry) => path.startsWith(`${entry.path}/`))
 
+        const registeredPaths = new Set<string>()
+        type Routable = { path: string }
+        const registerPage = (page: Routable & Parameters<typeof createPage>[0]) => {
+          if (registeredPaths.has(page.path)) return
+          registeredPaths.add(page.path)
+          createPage(page)
+          maybeRegisterDefaultLocaleAlias(page, config, registeredPaths, registerPage)
+        }
+        const registerLayout = (layout: Routable & Parameters<typeof createLayout>[0]) => {
+          if (registeredPaths.has(layout.path)) return
+          registeredPaths.add(layout.path)
+          createLayout(layout)
+          maybeRegisterDefaultLocaleAlias(layout, config, registeredPaths, registerLayout)
+        }
+
         for (const file in allModules) {
           const importFn = allModules[file]
           if (!importFn) continue
@@ -232,7 +248,7 @@ export function router(
                 ...sourceFileProperty,
               })
             } else {
-              createPage({
+              registerPage({
                 path,
                 component,
                 render: 'static',
@@ -286,7 +302,7 @@ export function router(
               ...sourceFileProperty,
             } as never) // FIXME avoid as never
           } else if (pathItems.at(-1) === '_layout') {
-            createLayout({
+            registerLayout({
               path,
               component: mod.default,
               render: 'static',
@@ -301,7 +317,7 @@ export function router(
               ...sourceFileProperty,
             })
           } else {
-            createPage({
+            registerPage({
               path,
               component: mod.default,
               render: 'static',
@@ -344,7 +360,7 @@ export function router(
           for (const entry of config.openapi) {
             // Section root: overview listing every category.
             const rootProps = await overrideProps(entry.path)
-            createPage({
+            registerPage({
               path: entry.path,
               component: () =>
                 createElement(OpenApiPage, {
@@ -360,7 +376,7 @@ export function router(
             for (const group of ir?.groups ?? []) {
               const groupRoute = `${entry.path}/${groupPath(group)}`
               const groupProps = await overrideProps(groupRoute)
-              createPage({
+              registerPage({
                 path: groupRoute,
                 component: () =>
                   createElement(OpenApiPage, { mount: entry.path, group: group.id, ...groupProps }),
@@ -381,7 +397,7 @@ export function router(
               if (!mod.default) continue
               const Content = mod.default
               const title = mod.frontmatter?.title
-              createPage({
+              registerPage({
                 path: routePath,
                 component: () =>
                   createElement(
@@ -401,4 +417,24 @@ export function router(
       unstable_skipBuild ? { unstable_skipBuild } : undefined,
     ),
   )
+}
+
+function maybeRegisterDefaultLocaleAlias<T extends { path: string }>(
+  route: T,
+  config: import('../../../internal/config.js').Config,
+  registeredPaths: Set<string>,
+  register: (route: T) => void,
+) {
+  if (!config.i18n || config.i18n.hideLocale !== 'default-locale') return
+
+  const { defaultLocale } = config.i18n
+  const prefix = `/${defaultLocale}`
+  const { path } = route
+  if (I18n.isSharedPath(path)) return
+  if (path !== prefix && !path.startsWith(`${prefix}/`)) return
+
+  const aliasPath = path === prefix ? '/' : path.slice(prefix.length) || '/'
+  if (I18n.isSharedPath(aliasPath) || registeredPaths.has(aliasPath)) return
+
+  register({ ...route, path: aliasPath })
 }

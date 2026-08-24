@@ -103,9 +103,69 @@ export function localizePath(path: string, locale: string, config: I18nConfig | 
   return `/${locale}${logical}`
 }
 
+const sharedPathPrefixes = ['/api', '/assets', '/_api'] as const
+
+const staticExtensions = new Set([
+  'css',
+  'gif',
+  'html',
+  'ico',
+  'jpeg',
+  'jpg',
+  'js',
+  'json',
+  'map',
+  'md',
+  'png',
+  'svg',
+  'ttf',
+  'txt',
+  'wasm',
+  'webp',
+  'woff',
+  'woff2',
+  'xml',
+])
+
+export function isSharedPath(pathname: string): boolean {
+  const normalized = normalizePath(pathname)
+  if (normalized === '/llms.txt' || normalized === '/sitemap.xml' || normalized === '/robots.txt') {
+    return true
+  }
+  return sharedPathPrefixes.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`),
+  )
+}
+
+export function hasStaticExtension(pathname: string): boolean {
+  const segment = pathname.split('/').pop() ?? ''
+  if (!segment.includes('.')) return false
+  const ext = segment.split('.').pop()?.toLowerCase()
+  return ext ? staticExtensions.has(ext) : false
+}
+
+export function isWithinBasePath(pathname: string, basePath: string): boolean {
+  if (basePath === '/') return true
+  const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath
+  return pathname === base || pathname.startsWith(`${base}/`)
+}
+
+/** Canonical URL path for SEO (respects `hideLocale`). */
+export function getPublicPath(path: string, config: I18nConfig | undefined): string {
+  if (!config) return normalizePath(path)
+
+  const normalized = normalizePath(path)
+  const locale = parseLocale(normalized, config)
+  if (config.hideLocale === 'default-locale' && locale === config.defaultLocale) {
+    return stripLocale(normalized, config)
+  }
+  return normalized
+}
+
 export function getAlternates(
   path: string,
   config: I18nConfig | undefined,
+  options?: getAlternates.Options,
 ): Record<string, string> | undefined {
   if (!config) return undefined
 
@@ -113,10 +173,42 @@ export function getAlternates(
   const alternates: Record<string, string> = {}
 
   for (const locale of config.locales) {
+    if (options?.existingLocales && !options.existingLocales.has(locale.code)) continue
     alternates[locale.lang ?? locale.code] = localizePath(logical, locale.code, config)
   }
 
   return alternates
+}
+
+export declare namespace getAlternates {
+  type Options = {
+    /** When set, only locales with an existing translation are included. */
+    existingLocales?: ReadonlySet<string> | undefined
+  }
+}
+
+export function swapLocale(
+  path: string,
+  targetLocale: string,
+  config: I18nConfig | undefined,
+): string {
+  if (!config) return path
+
+  const hashIndex = path.indexOf('#')
+  const queryIndex = path.indexOf('?')
+  const splitIndex =
+    hashIndex >= 0 && queryIndex >= 0
+      ? Math.min(hashIndex, queryIndex)
+      : hashIndex >= 0
+        ? hashIndex
+        : queryIndex >= 0
+          ? queryIndex
+          : -1
+  const pathname = splitIndex >= 0 ? path.slice(0, splitIndex) : path
+  const suffix = splitIndex >= 0 ? path.slice(splitIndex) : ''
+  const logical = stripLocale(pathname, config)
+
+  return `${localizePath(logical, targetLocale, config)}${suffix}`
 }
 
 export function isLocaleHome(path: string, config: I18nConfig | undefined): boolean {
@@ -148,8 +240,11 @@ export function getLocale(path: string, config: I18nConfig | undefined): Locale 
 }
 
 export function shouldSkipI18n(pathname: string): boolean {
-  if (pathname.startsWith('/_api/')) return true
-  if (/\.\w+$/.test(pathname)) return true
+  if (pathname.startsWith('/_api/') || pathname === '/api' || pathname.startsWith('/api/')) {
+    return true
+  }
+  if (isSharedPath(pathname)) return true
+  if (hasStaticExtension(pathname)) return true
   return false
 }
 

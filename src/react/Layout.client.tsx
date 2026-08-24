@@ -137,7 +137,7 @@ export function Main(props: Main.Props) {
 
           <TopNav.TopNav className="vocs:max-lg:hidden vocs:px-2" />
 
-          {i18n && <LocaleSwitcher.LocaleSwitcher className="vocs:max-lg:hidden" />}
+          {i18n && <LocaleSwitcher.LocaleSwitcher />}
 
           <div className="vocs:lg:hidden vocs:flex vocs:items-center vocs:px-3 vocs:gap-1">
             {showSearch && (

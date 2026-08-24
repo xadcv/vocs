@@ -159,7 +159,33 @@ describe('getLocale', () => {
 describe('shouldSkipI18n', () => {
   test('skips api routes and static assets', () => {
     expect(I18n.shouldSkipI18n('/_api/api/search')).toBe(true)
+    expect(I18n.shouldSkipI18n('/api/search')).toBe(true)
     expect(I18n.shouldSkipI18n('/styles.css')).toBe(true)
     expect(I18n.shouldSkipI18n('/en/guide')).toBe(false)
+    expect(I18n.shouldSkipI18n('/v1.0')).toBe(false)
+  })
+})
+
+describe('getPublicPath', () => {
+  test('returns unprefixed path for hidden default locale', () => {
+    const hidden = I18n.from({
+      defaultLocale: 'en',
+      hideLocale: 'default-locale',
+      locales: [
+        { code: 'en', label: 'English' },
+        { code: 'fr', label: 'Français' },
+      ],
+    })
+
+    expect(I18n.getPublicPath('/en/guide', hidden)).toBe('/guide')
+    expect(I18n.getPublicPath('/fr/guide', hidden)).toBe('/fr/guide')
+  })
+})
+
+describe('isSharedPath', () => {
+  test('detects shared routes', () => {
+    expect(I18n.isSharedPath('/api/search')).toBe(true)
+    expect(I18n.isSharedPath('/llms.txt')).toBe(true)
+    expect(I18n.isSharedPath('/en/guide')).toBe(false)
   })
 })

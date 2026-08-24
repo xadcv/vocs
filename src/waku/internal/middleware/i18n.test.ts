@@ -82,9 +82,26 @@ describe('i18n middleware', () => {
   })
 
   it('skips api routes', async () => {
-    const res = await request('http://localhost/_api/api/search', { i18n: neverConfig })
+    const res = await request('http://localhost/api/search', { i18n: neverConfig })
     expect(res.status).toBe(200)
-    expect(await res.text()).toBe('/_api/api/search')
+    expect(await res.text()).toBe('/api/search')
+  })
+
+  it('respects redirectRoot: false with hidden default locale', async () => {
+    const noRedirect = I18n.from({
+      defaultLocale: 'en',
+      hideLocale: 'default-locale',
+      redirectRoot: false,
+      locales: [
+        { code: 'en', label: 'English' },
+        { code: 'fr', label: 'Français' },
+      ],
+    })
+    if (!noRedirect) throw new Error('expected i18n config')
+
+    const res = await request('http://localhost/', { i18n: noRedirect })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('/')
   })
 
   it('respects basePath when redirecting root', async () => {

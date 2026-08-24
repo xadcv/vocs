@@ -97,11 +97,27 @@ function localizeInternalLink(
   i18n: I18n.I18nConfig | undefined,
 ) {
   if (!i18n || !target.startsWith('/') || Path.isExternal(target)) return target
+  if (I18n.isSharedPath(target.split(/[?#]/)[0] ?? target)) return target
+
+  const hashIndex = target.indexOf('#')
+  const queryIndex = target.indexOf('?')
+  const splitIndex =
+    hashIndex >= 0 && queryIndex >= 0
+      ? Math.min(hashIndex, queryIndex)
+      : hashIndex >= 0
+        ? hashIndex
+        : queryIndex >= 0
+          ? queryIndex
+          : -1
+  const base = splitIndex >= 0 ? target.slice(0, splitIndex) : target
+  const suffix = splitIndex >= 0 ? target.slice(splitIndex) : ''
+
+  if (I18n.parseLocale(base, i18n)) return target
+
+  if (base === '/' && i18n.redirectRoot === false) return target
 
   const currentLocale = routerPath ? I18n.getLocale(routerPath, i18n)?.code : i18n.defaultLocale
   if (!currentLocale) return target
 
-  const localized = I18n.localizePath(target, currentLocale, i18n)
-  if (I18n.parseLocale(target, i18n)) return target
-  return localized
+  return `${I18n.localizePath(base, currentLocale, i18n)}${suffix}`
 }

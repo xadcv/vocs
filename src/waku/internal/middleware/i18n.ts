@@ -14,22 +14,27 @@ const normalizeBasePath = (basePath: string) => (basePath.endsWith('/') ? basePa
  *   their canonical unprefixed form.
  */
 export const i18n = (options: i18n.Options = {}): MiddlewareHandler => {
-  const optionsPromise =
-    options.basePath !== undefined || options.i18n !== undefined
-      ? Promise.resolve({
-          basePath: normalizeBasePath(options.basePath ?? '/'),
-          i18n: options.i18n,
-        })
-      : Config.resolve({ server: true }).then((config) => ({
-          basePath: normalizeBasePath(config.basePath),
-          i18n: config.i18n,
-        }))
+  const optionsPromise = (async () => {
+    const resolved =
+      options.basePath !== undefined || options.i18n !== undefined
+        ? { basePath: options.basePath, i18n: options.i18n }
+        : await Config.resolve({ server: true }).then((config) => ({
+            basePath: config.basePath,
+            i18n: config.i18n,
+          }))
+    return {
+      basePath: normalizeBasePath(resolved.basePath ?? '/'),
+      i18n: resolved.i18n,
+    }
+  })()
 
   return async (context, next) => {
     const { basePath, i18n: i18nConfig } = await optionsPromise
     if (!i18nConfig) return next()
 
     const url = new URL(context.req.url)
+    if (!I18n.isWithinBasePath(url.pathname, basePath)) return next()
+
     const pathname = stripBasePath(url.pathname, basePath)
     if (I18n.shouldSkipI18n(pathname)) return next()
 
@@ -38,6 +43,7 @@ export const i18n = (options: i18n.Options = {}): MiddlewareHandler => {
 
     if (pathname === '/') {
       if (hideDefault) {
+        if (!i18nConfig.redirectRoot) return next()
         return rewriteRequest(
           context,
           url,

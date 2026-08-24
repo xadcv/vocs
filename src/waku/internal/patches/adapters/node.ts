@@ -54,6 +54,11 @@ const adapter: typeof import('waku/adapters/node').default = createServerEntryAd
       })
     }
 
+    if (isBuild && typedMiddlewareModules['i18n']) {
+      const i18nMiddleware = middlewareRunner({ i18n: typedMiddlewareModules['i18n'] }, { app })
+      app.use(`${config.basePath}*`, i18nMiddleware)
+    }
+
     if (isBuild)
       app.use(
         `${config.basePath}*`,

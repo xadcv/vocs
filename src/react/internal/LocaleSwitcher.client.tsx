@@ -2,13 +2,14 @@
 
 import { Menu } from '@base-ui/react/menu'
 import { cx } from 'cva'
+import { useRouter } from 'waku'
 import LucideCheck from '~icons/lucide/check'
 import LucideLanguages from '~icons/lucide/languages'
-import { Link } from '../Link.js'
 import { useLocale } from '../useLocale.js'
 
 export function LocaleSwitcher(props: LocaleSwitcher.Props) {
   const { className } = props
+  const { path } = useRouter()
   const { alternates, locale, locales } = useLocale()
 
   if (!locales || locales.length < 2 || !alternates) return null
@@ -31,16 +32,34 @@ export function LocaleSwitcher(props: LocaleSwitcher.Props) {
           <Menu.Popup className="vocs:bg-surface vocs:min-w-[160px] vocs:border vocs:border-primary vocs:p-1 vocs:rounded-lg vocs:shadow-lg/5">
             {locales.map((entry) => {
               const href = alternates[entry.lang ?? entry.code]
+              if (!href) return null
               const active = entry.code === locale?.code
+              const searchIndex = path.indexOf('?')
+              const hashIndex = path.indexOf('#')
+              const suffixStart =
+                searchIndex >= 0 && hashIndex >= 0
+                  ? Math.min(searchIndex, hashIndex)
+                  : searchIndex >= 0
+                    ? searchIndex
+                    : hashIndex >= 0
+                      ? hashIndex
+                      : -1
+              const suffix = suffixStart >= 0 ? path.slice(suffixStart) : ''
               return (
                 <Menu.Item
                   className="vocs:flex vocs:items-center vocs:justify-between vocs:gap-2 vocs:px-2 vocs:py-1.5 vocs:rounded-md vocs:text-[14px] vocs:text-primary/80 vocs:hover:text-heading vocs:hover:bg-surfaceMuted vocs:data-highlighted:bg-surfaceMuted vocs:cursor-pointer"
                   key={entry.code}
-                  render={<Link to={href} />}
-                >
-                  <span>{entry.label}</span>
-                  {active && <LucideCheck className="vocs:size-4 vocs:text-accent7" />}
-                </Menu.Item>
+                  render={(props) => (
+                    <a
+                      {...props}
+                      aria-current={active ? 'true' : undefined}
+                      href={`${href}${suffix}`}
+                    >
+                      <span>{entry.label}</span>
+                      {active && <LucideCheck className="vocs:size-4 vocs:text-accent7" />}
+                    </a>
+                  )}
+                />
               )
             })}
           </Menu.Popup>

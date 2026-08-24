@@ -67,6 +67,7 @@ type SemanticResult = {
   type: 'page' | 'section' | 'nav'
   snippet: string
   score: number
+  locale?: string | undefined
 }
 
 /** Adapts a semantic endpoint result to the keyword `SearchResult` shape for reuse. */
@@ -83,6 +84,7 @@ function toSearchResult(result: SemanticResult): SearchResult {
     title: result.title,
     titles: result.titles,
     type: result.type,
+    locale: result.locale,
   }
 }
 
@@ -162,7 +164,7 @@ export function Search(props: Search.Props) {
       const response = await fetch(semanticConfig.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, locale: localeCode }),
         signal: controller.signal,
       })
       if (!response.ok) throw new Error(`Semantic search failed: ${response.status}`)
@@ -191,7 +193,14 @@ export function Search(props: Search.Props) {
       clearTimeout(timer)
       if (retryTimer) clearTimeout(retryTimer)
     }
-  }, [semanticEnabled, open, query, semanticConfig?.endpoint, semanticConfig?.ui?.debounceMs])
+  }, [
+    semanticEnabled,
+    open,
+    query,
+    semanticConfig?.endpoint,
+    semanticConfig?.ui?.debounceMs,
+    localeCode,
+  ])
 
   const displayedResults = React.useMemo(() => {
     if (!query.trim()) return recentSearches.filter(matchesLocale)
