@@ -9,6 +9,7 @@ import { createLogger } from 'vite'
 import * as Config from './config.js'
 import * as ConfigSerializer from './config-serializer.js'
 import * as Git from './git.js'
+import * as I18n from './i18n.js'
 import * as Icons from './icons.js'
 import * as Langs from './langs.js'
 import * as Llms from './llms.js'
@@ -403,7 +404,12 @@ export function sitemap(config: Config.Config): PluginOption {
 
     const runner = TaskRunner.create(20)
 
-    const urls: { lastmod: string | undefined; loc: string }[] = []
+    const urls: {
+      alternates?: Record<string, string> | undefined
+      lastmod: string | undefined
+      loc: string
+      pagePath: string
+    }[] = []
     for (const page of pages) {
       // Skip files/directories starting with _
       const filePath = path.relative(pagesDir, page).split(path.sep).join('/')
@@ -418,14 +424,22 @@ export function sitemap(config: Config.Config): PluginOption {
 
         if (!resolveSitemapInclude(config, pagePath, filePath)) return
 
-        const loc = `${siteUrl.replace(/\/$/, '')}${pagePath}`
         const gitDate = Git.getLastModified(page)
         const lastmod = gitDate
           ? (gitDate.split('T')[0] as string)
           : ((await fs.stat(page)).mtime.toISOString().split('T')[0] as string)
         const resolvedLastmod = resolveSitemapLastmod(config, pagePath, filePath, lastmod)
+        const publicPath = config.i18n ? I18n.getPublicPath(pagePath, config.i18n) : pagePath
+        const publicBasePath =
+          config.basePath && config.basePath !== '/' ? config.basePath.replace(/\/$/, '') : ''
+        const loc = `${siteUrl.replace(/\/$/, '')}${publicBasePath}${publicPath}`
 
-        urls.push({ loc, lastmod: resolvedLastmod })
+        urls.push({
+          alternates: I18n.getAlternates(pagePath, config.i18n),
+          lastmod: resolvedLastmod,
+          loc,
+          pagePath,
+        })
       })
     }
 
@@ -433,23 +447,68 @@ export function sitemap(config: Config.Config): PluginOption {
 
     urls.sort((a, b) => a.loc.localeCompare(b.loc))
 
+    const siteOrigin = siteUrl.replace(/\/$/, '')
+    const publicBasePath =
+      config.basePath && config.basePath !== '/' ? config.basePath.replace(/\/$/, '') : ''
+
+    const logicalPaths = new Map<string, typeof urls>()
+    if (config.i18n) {
+      for (const url of urls) {
+        const logical = I18n.stripLocale(url.pagePath, config.i18n)
+        const group = logicalPaths.get(logical) ?? []
+        group.push(url)
+        logicalPaths.set(logical, group)
+      }
+    }
+
     const indent = '  '
-    const entries = urls
-      .map(({ loc, lastmod }) =>
-        [
+    const canonicalUrls = config.i18n
+      ? [...logicalPaths.entries()].map(([logical, group]) => {
+          const existingLocales = new Set<string>()
+          for (const entry of group) {
+            const locale = I18n.parseLocale(entry.pagePath, config.i18n)
+            if (locale) existingLocales.add(locale)
+            else if (config.i18n?.hideLocale === 'default-locale') {
+              existingLocales.add(config.i18n.defaultLocale)
+            }
+          }
+          const representative =
+            group.find((entry) => I18n.getPublicPath(entry.pagePath, config.i18n) === logical) ??
+            group[0]
+          if (!representative) return undefined
+          return {
+            alternates: I18n.getAlternates(logical, config.i18n, { existingLocales }),
+            lastmod: representative.lastmod,
+            loc: representative.loc,
+          }
+        })
+      : urls
+
+    const entries = canonicalUrls
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined)
+      .map(({ alternates, lastmod, loc }) => {
+        const alternateLinks = alternates
+          ? Object.entries(alternates).map(
+              ([hreflang, hrefPath]) =>
+                `${indent}${indent}<xhtml:link rel="alternate" hreflang="${hreflang}" href="${siteOrigin}${publicBasePath}${hrefPath}" />`,
+            )
+          : []
+
+        return [
           `${indent}<url>`,
           `${indent}${indent}<loc>${loc}</loc>`,
           lastmod ? `${indent}${indent}<lastmod>${lastmod}</lastmod>` : undefined,
+          ...alternateLinks,
           `${indent}</url>`,
         ]
           .filter(Boolean)
-          .join('\n'),
-      )
+          .join('\n')
+      })
       .join('\n')
 
     return [
       '<?xml version="1.0" encoding="UTF-8"?>',
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
       entries,
       '</urlset>',
       '',

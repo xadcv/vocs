@@ -975,6 +975,7 @@ describe('Search fields and storeFields', () => {
       [
         "category",
         "href",
+        "locale",
         "searchPriority",
         "subtitle",
         "text",
@@ -1029,6 +1030,7 @@ describe('SearchConfig', () => {
       storeFields: [
         'category',
         'href',
+        'locale',
         'searchPriority',
         'subtitle',
         'text',
@@ -1051,6 +1053,7 @@ describe('SearchConfig', () => {
     expect(Search.SearchConfig.getIndexOptions(config).storeFields).toEqual([
       'category',
       'href',
+      'locale',
       'searchPriority',
       'subtitle',
       'text',

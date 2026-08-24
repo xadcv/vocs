@@ -138,6 +138,7 @@ export default defineConfig({
         { text: 'Dynamic OG Images', link: '/features/dynamic-og-images' },
         { text: 'Fonts', link: '/features/fonts' },
         { text: 'Head Tags', link: '/features/head' },
+        { text: 'Internationalization', link: '/features/i18n' },
         { text: 'Layouts', link: '/features/layouts' },
         { text: 'MCP Server', link: '/features/mcp-server' },
         { text: 'Navigation', link: '/features/navigation' },

@@ -1,4 +1,5 @@
 export { default as aiSearchWarmup } from './ai-search-warmup.js'
-export { default as mdRouter } from './md-router.js'
 export { default as redirects } from './redirects.js'
+export { default as i18n } from './i18n.js'
+export { default as mdRouter } from './md-router.js'
 export { default as trailingSlash } from './trailing-slash.js'

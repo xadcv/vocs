@@ -43,6 +43,8 @@ export type Result = {
   titles: string[]
   /** Kind of source document. */
   type: 'page' | 'section' | 'nav'
+  /** Locale code when i18n is enabled. */
+  locale?: string | undefined
 }
 
 /** Context passed to {@link Adapter.retrieve}. */
@@ -868,6 +870,8 @@ export type Chunk = {
   titles: string[]
   /** Kind of source document. */
   type: 'page' | 'section' | 'nav'
+  /** Locale code when i18n is enabled. */
+  locale?: string | undefined
   /** Score multiplier applied at ranking time. @default 1 */
   weight?: number | undefined
 }
@@ -882,6 +886,7 @@ type Document = {
   title: string
   titles: string[]
   type: 'page' | 'section' | 'nav'
+  locale?: string | undefined
   weight?: number | undefined
 }
 
@@ -911,6 +916,7 @@ export function chunk(documents: readonly Document[], options: ResolvedChunking)
         titles: doc.titles,
         category: doc.category,
         type: doc.type,
+        locale: doc.locale,
         weight: doc.weight,
         text,
         embeddingText: prefix ? `${prefix}\n\n${text}` : text,
@@ -968,6 +974,8 @@ export type ChunkMetadata = {
   titles: string[]
   /** Kind of source document. */
   type: 'page' | 'section' | 'nav'
+  /** Locale code when i18n is enabled. */
+  locale?: string | undefined
   /** Score multiplier applied at ranking time (omitted when `1`). */
   weight?: number | undefined
 }
@@ -1106,6 +1114,7 @@ export async function buildIndex(
     titles: c.titles,
     category: c.category,
     type: c.type,
+    locale: c.locale,
     snippet: c.text.slice(0, 240),
     text: c.text,
     ...(c.weight !== undefined && c.weight !== 1 ? { weight: c.weight } : {}),
@@ -1583,6 +1592,7 @@ export async function retrieveLocal(
   const seen = new Set<string>()
   const results: Result[] = []
   for (const { meta, score } of ranked) {
+    if (options.locale && meta.locale && meta.locale !== options.locale) continue
     if (seen.has(meta.href)) continue
     seen.add(meta.href)
     results.push({
@@ -1592,6 +1602,7 @@ export async function retrieveLocal(
       titles: meta.titles,
       category: meta.category,
       type: meta.type,
+      locale: meta.locale,
       snippet: meta.snippet,
       score,
     })
@@ -1606,12 +1617,15 @@ export declare namespace retrieveLocal {
     query: string
     /** Max results to return. @default retrieval.topK */
     limit?: number | undefined
+    /** Restrict results to a locale when i18n is enabled. */
+    locale?: string | undefined
   }
 }
 
 type RequestBody = {
   query?: unknown
   limit?: unknown
+  locale?: unknown
 }
 
 /** Local branch of {@link handleSearchRequest}. */
@@ -1636,6 +1650,7 @@ async function handleLocalSearchRequest(
 
   const limit =
     typeof body.limit === 'number' ? Math.max(1, Math.min(20, Math.floor(body.limit))) : undefined
+  const locale = typeof body.locale === 'string' ? body.locale : undefined
 
   // Static store only: kick off (or reuse) the in-process index. This loads
   // the prebuilt manifest when present and cold-builds otherwise. While
@@ -1664,7 +1679,7 @@ async function handleLocalSearchRequest(
     const t0 = Date.now()
     const [store, results] = await Promise.all([
       index?.promise.then((i) => i.store),
-      retrieveLocal(config, { query, limit }),
+      retrieveLocal(config, { query, limit, locale }),
     ])
     const searchMs = Date.now() - t0
 

@@ -5,6 +5,7 @@ import { ErrorBoundary } from './internal/ErrorBoundary.client.js'
 import { HeadingAnchors } from './internal/HeadingAnchors.client.js'
 import { NuqsAdapter } from './internal/NuqsAdapter.js'
 import { useConfig } from './useConfig.js'
+import { useLocale } from './useLocale.js'
 
 const storageKey = 'vocs-theme'
 
@@ -46,8 +47,17 @@ function applyTheme(theme: 'light' | 'dark' | 'system') {
 
 export function Root_client({ children }: { children: React.ReactNode }) {
   const { accentColor, colorScheme } = useConfig()
+  const { locale } = useLocale()
 
   const staticScheme = colorScheme !== 'light dark'
+
+  useEffect(() => {
+    const html = document.documentElement
+    if (locale) {
+      html.lang = locale.lang ?? locale.code
+      html.dir = locale.dir ?? 'ltr'
+    }
+  }, [locale])
 
   // React to theme config changes.
   useEffect(() => {

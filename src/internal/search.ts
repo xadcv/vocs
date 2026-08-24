@@ -13,6 +13,7 @@ import { type Pluggable, unified } from 'unified'
 import * as UnistUtil from 'unist-util-visit'
 import * as yaml from 'yaml'
 import type * as Config from './config.js'
+import * as I18n from './i18n.js'
 import * as MarkdownImports from './markdown-imports.js'
 import {
   extractSubheading,
@@ -50,6 +51,8 @@ export namespace SearchDocuments {
     titles: string[]
     /** Document type: 'page' | 'section' | 'nav' */
     type: 'page' | 'section' | 'nav'
+    /** Locale code when i18n is enabled */
+    locale?: string | undefined
   }
 
   /**
@@ -79,11 +82,13 @@ export namespace SearchDocuments {
             .replace(/^$/, '/') || '/'
 
         const category = findCategory(href, config.topNav)
+        const locale = I18n.parseLocale(href, config.i18n)
 
         const documents = sections.map((section) => ({
           category,
           href: section.anchor ? `${href}#${section.anchor}` : href,
           id: `${filePath}#${section.anchor}`,
+          locale,
           searchPriority,
           subtitle: section.subtitle,
           text: section.text,
@@ -270,6 +275,7 @@ export namespace SearchIndex {
       .replace(/^\//, '/')
 
     const category = SearchDocuments.findCategory(href, config.topNav)
+    const locale = I18n.parseLocale(href, config.i18n)
     const newIds: string[] = []
 
     for (const section of sections) {
@@ -279,6 +285,7 @@ export namespace SearchIndex {
         category,
         href: section.anchor ? `${href}#${section.anchor}` : href,
         id,
+        locale,
         searchPriority,
         subtitle: section.subtitle,
         text: section.text,

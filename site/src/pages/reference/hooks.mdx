@@ -28,6 +28,28 @@ const config = useConfig()
 ```
 :::
 
+## useLocale
+
+Use `useLocale` in client components when i18n is enabled. It returns the active locale, available locales, alternate paths, and a helper to build locale-aware links.
+
+:::code-group
+```tsx [Usage]
+'use client'
+
+import { useLocale } from 'vocs'
+
+export function LocaleBanner() {
+  const { locale, localizePath } = useLocale() // [!code focus]
+
+  if (!locale) return null
+  return <a href={localizePath('/guide')}>Guide ({locale.label})</a>
+}
+```
+```tsx [Syntax]
+const { locale, locales, alternates, localizePath } = useLocale()
+```
+:::
+
 ## useRouter
 
 `useRouter` is re-exported from `waku` and gives you access to the current route plus navigation methods like `push`, `replace`, and `back`.
