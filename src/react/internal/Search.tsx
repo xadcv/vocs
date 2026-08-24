@@ -17,6 +17,7 @@ import { SearchConfig } from '../../internal/search.client.js'
 import { append, fuse } from '../../internal/search-fusion.js'
 import { Link } from '../Link.js'
 import { useConfig } from '../useConfig.js'
+import { useLocale } from '../useLocale.js'
 import { DialogTrigger } from './DialogTrigger.js'
 
 const recentSearchesKey = 'vocs-recent-searches'
@@ -34,6 +35,7 @@ type SearchResult = {
   title: string
   titles: string[]
   type: 'page' | 'section' | 'nav'
+  locale?: string | undefined
 }
 
 type SearchState = {
@@ -93,6 +95,7 @@ export function Search(props: Search.Props) {
   const { className, disableKeyboardShortcut, trigger } = props
 
   const config = useConfig()
+  const { locale } = useLocale()
   const [query, setQuery] = useQueryState('q', { defaultValue: '' })
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState<SearchState>(initialSearchState)
@@ -111,6 +114,12 @@ export function Search(props: Search.Props) {
 
   const listRef = React.useRef<HTMLUListElement>(null)
   const router = useRouter()
+  const localeCode = locale?.code
+
+  const matchesLocale = React.useCallback(
+    (result: SearchResult) => !localeCode || !result.locale || result.locale === localeCode,
+    [localeCode],
+  )
 
   // AI (semantic) search. `ai.retriever` selects one provider — a built-in vector
   // store or a managed retriever — and both serialize to the same public shape
@@ -185,10 +194,12 @@ export function Search(props: Search.Props) {
   }, [semanticEnabled, open, query, semanticConfig?.endpoint, semanticConfig?.ui?.debounceMs])
 
   const displayedResults = React.useMemo(() => {
-    if (!query.trim()) return recentSearches
+    if (!query.trim()) return recentSearches.filter(matchesLocale)
     // Ignore AI results that belong to a previous query — while a new request is
     // in flight, show fresh keyword results rather than stale AI ones.
-    const semanticFresh = semanticEnabled && semanticResultsQuery === query ? semanticResults : []
+    const semanticFresh = (
+      semanticEnabled && semanticResultsQuery === query ? semanticResults : []
+    ).filter(matchesLocale)
     if (semanticFresh.length === 0) return search.results
     // `hybrid: false` opts into append mode: keyword ordering stays put and AI
     // results follow below. Fusion is the default.
@@ -208,6 +219,7 @@ export function Search(props: Search.Props) {
     search.results,
     recentSearches,
     semanticConfig?.hybrid,
+    matchesLocale,
   ])
 
   const jumpToResult = React.useMemo(() => {
@@ -248,11 +260,11 @@ export function Search(props: Search.Props) {
       return
     }
 
-    const results = (
-      index.search(query, SearchConfig.getQueryOptions(config)) as SearchResult[]
-    ).slice(0, 20)
+    const results = (index.search(query, SearchConfig.getQueryOptions(config)) as SearchResult[])
+      .filter(matchesLocale)
+      .slice(0, 20)
     setSearch((s) => ({ ...s, results, selectedIndex: 0 }))
-  }, [query, index, config])
+  }, [query, index, config, matchesLocale])
 
   React.useEffect(() => {
     if (disableKeyboardShortcut) return

@@ -147,6 +147,37 @@ export default defineConfig({
 })
 ```
 
+### `i18n`
+
+- **Type:** `object | undefined`
+
+Internationalization configuration. When set, Vocs enables locale-prefixed routing, a language switcher in the top navigation, locale-filtered search, and `hreflang` alternate links.
+
+```ts
+export default defineConfig({
+  i18n: {
+    defaultLocale: 'en',
+    locales: [
+      { code: 'en', label: 'English' },
+      { code: 'fr', label: 'Français', lang: 'fr-FR' },
+    ],
+    hideLocale: 'never', // 'never' | 'default-locale'
+    redirectRoot: true,
+  },
+})
+```
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `defaultLocale` | `string` | — | Default locale code. Must match one of `locales[].code`. |
+| `locales` | `array` | — | Supported locales. Each entry requires `code` and `label`. |
+| `locales[].lang` | `string` | `code` | BCP 47 language tag for `<html lang>` and `hreflang`. |
+| `locales[].dir` | `'ltr' \| 'rtl'` | `'ltr'` | Text direction for the locale. |
+| `hideLocale` | `'never' \| 'default-locale'` | `'never'` | Whether to hide the default locale prefix in URLs. |
+| `redirectRoot` | `boolean` | `true` | Redirect `/` to the default locale home (e.g. `/en`). |
+
+Organize translated pages under `pages/{locale}/`. Use path-scoped [`sidebar`](#sidebar) keys like `'/en/'` and `'/fr/'` for locale-specific navigation.
+
 ### `jsonLd`
 
 - **Type:** `boolean`

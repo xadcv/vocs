@@ -8,6 +8,7 @@ export const searchFields = ['category', 'subtitle', 'text', 'title', 'titles'] 
 export const storeFields = [
   'category',
   'href',
+  'locale',
   'searchPriority',
   'subtitle',
   'text',

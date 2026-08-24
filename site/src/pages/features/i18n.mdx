@@ -1,0 +1,140 @@
+import { Card, Cards } from 'vocs'
+
+# Internationalization [Serve documentation in multiple languages]
+
+## Overview
+
+Vocs supports locale-prefixed documentation. Organize translated pages under `pages/{locale}/`, configure locales in `vocs.config.ts`, and Vocs handles locale routing, the language switcher, search filtering, and `hreflang` SEO tags.
+
+## Recipes
+
+### Enable i18n
+
+Add an `i18n` block with a default locale and the locales you support.
+
+```ts [vocs.config.ts]
+export default defineConfig({
+  i18n: { // [!code focus:7]
+    defaultLocale: 'en',
+    locales: [
+      { code: 'en', label: 'English' },
+      { code: 'fr', label: 'Français', lang: 'fr-FR' },
+    ],
+  },
+})
+```
+
+### Organize translated pages
+
+Place each locale's content under its own directory. Equivalent pages share the same path after the locale segment so the language switcher can link between them.
+
+```txt [src/pages/]
+en/
+  index.mdx          → /en
+  guide/intro.mdx    → /en/guide/intro
+fr/
+  index.mdx          → /fr
+  guide/intro.mdx    → /fr/guide/intro
+```
+
+### Scope sidebars per locale
+
+Use path-scoped sidebars — the same pattern as multi-section docs — with keys for each locale prefix.
+
+```ts [vocs.config.ts]
+export default defineConfig({
+  i18n: {
+    defaultLocale: 'en',
+    locales: [
+      { code: 'en', label: 'English' },
+      { code: 'fr', label: 'Français' },
+    ],
+  },
+  sidebar: { // [!code focus:8]
+    '/en/': [
+      { text: 'Introduction', link: '/en' },
+      { text: 'Guide', link: '/en/guide/intro' },
+    ],
+    '/fr/': [
+      { text: 'Introduction', link: '/fr' },
+      { text: 'Guide', link: '/fr/guide/intro' },
+    ],
+  },
+})
+```
+
+### Hide the default locale prefix
+
+Set `hideLocale: 'default-locale'` to serve the default language at unprefixed URLs (`/guide`) while other locales keep their prefix (`/fr/guide`).
+
+```ts [vocs.config.ts]
+export default defineConfig({
+  i18n: {
+    defaultLocale: 'en',
+    hideLocale: 'default-locale', // [!code focus]
+    locales: [
+      { code: 'en', label: 'English' },
+      { code: 'fr', label: 'Français' },
+    ],
+  },
+})
+```
+
+With this mode, place default-locale pages under `pages/en/` and Vocs rewrites `/guide` to `/en/guide` internally.
+
+### Use `useLocale` in custom components
+
+Read the active locale and build locale-aware links in client components.
+
+```tsx
+'use client'
+
+import { useLocale } from 'vocs'
+
+export function LocaleBanner() {
+  const { locale, localizePath } = useLocale()
+  if (!locale) return null
+
+  return <a href={localizePath('/guide')}>Guide ({locale.label})</a>
+}
+```
+
+### Keep a locale-neutral home page
+
+When adding i18n to an existing site, set `redirectRoot: false` so `/` continues to serve your current landing page while locale-specific content lives under `/en/...` and `/fr/...`.
+
+```ts [vocs.config.ts]
+export default defineConfig({
+  i18n: {
+    defaultLocale: 'en',
+    redirectRoot: false, // [!code focus]
+    locales: [
+      { code: 'en', label: 'English' },
+      { code: 'fr', label: 'Français' },
+    ],
+  },
+})
+```
+
+## See More
+
+<Cards>
+  <Card
+    title="i18n"
+    description="Full i18n API in the Site Configuration reference."
+    icon="languages"
+    to="/reference/site-config#i18n"
+  />
+  <Card
+    title="Navigation"
+    description="Path-scoped sidebars and top nav for multi-section docs."
+    icon="panel-left"
+    to="/features/navigation"
+  />
+  <Card
+    title="Search"
+    description="Search is automatically filtered to the active locale."
+    icon="search"
+    to="/features/search"
+  />
+</Cards>

@@ -9,6 +9,7 @@ import { createLogger } from 'vite'
 import * as Config from './config.js'
 import * as ConfigSerializer from './config-serializer.js'
 import * as Git from './git.js'
+import * as I18n from './i18n.js'
 import * as Icons from './icons.js'
 import * as Langs from './langs.js'
 import * as Llms from './llms.js'
@@ -403,7 +404,12 @@ export function sitemap(config: Config.Config): PluginOption {
 
     const runner = TaskRunner.create(20)
 
-    const urls: { lastmod: string | undefined; loc: string }[] = []
+    const urls: {
+      alternates?: Record<string, string> | undefined
+      lastmod: string | undefined
+      loc: string
+      pagePath: string
+    }[] = []
     for (const page of pages) {
       // Skip files/directories starting with _
       const filePath = path.relative(pagesDir, page).split(path.sep).join('/')
@@ -425,7 +431,12 @@ export function sitemap(config: Config.Config): PluginOption {
           : ((await fs.stat(page)).mtime.toISOString().split('T')[0] as string)
         const resolvedLastmod = resolveSitemapLastmod(config, pagePath, filePath, lastmod)
 
-        urls.push({ loc, lastmod: resolvedLastmod })
+        urls.push({
+          alternates: I18n.getAlternates(pagePath, config.i18n),
+          lastmod: resolvedLastmod,
+          loc,
+          pagePath,
+        })
       })
     }
 
@@ -433,23 +444,53 @@ export function sitemap(config: Config.Config): PluginOption {
 
     urls.sort((a, b) => a.loc.localeCompare(b.loc))
 
+    const logicalPaths = new Map<string, typeof urls>()
+    if (config.i18n) {
+      for (const url of urls) {
+        const logical = I18n.stripLocale(url.pagePath, config.i18n)
+        const group = logicalPaths.get(logical) ?? []
+        group.push(url)
+        logicalPaths.set(logical, group)
+      }
+    }
+
     const indent = '  '
     const entries = urls
-      .map(({ loc, lastmod }) =>
-        [
+      .map(({ alternates, lastmod, loc, pagePath }) => {
+        const logical = config.i18n ? I18n.stripLocale(pagePath, config.i18n) : undefined
+        const group = logical ? logicalPaths.get(logical) : undefined
+        const alternateLinks =
+          config.i18n && group && group.length > 1
+            ? group.flatMap((entry) => {
+                const entryAlternates = I18n.getAlternates(entry.pagePath, config.i18n)
+                if (!entryAlternates) return []
+                return Object.entries(entryAlternates).map(
+                  ([hreflang, hrefPath]) =>
+                    `${indent}${indent}<xhtml:link rel="alternate" hreflang="${hreflang}" href="${siteUrl.replace(/\/$/, '')}${hrefPath}" />`,
+                )
+              })
+            : alternates
+              ? Object.entries(alternates).map(
+                  ([hreflang, hrefPath]) =>
+                    `${indent}${indent}<xhtml:link rel="alternate" hreflang="${hreflang}" href="${siteUrl.replace(/\/$/, '')}${hrefPath}" />`,
+                )
+              : []
+
+        return [
           `${indent}<url>`,
           `${indent}${indent}<loc>${loc}</loc>`,
           lastmod ? `${indent}${indent}<lastmod>${lastmod}</lastmod>` : undefined,
+          ...alternateLinks,
           `${indent}</url>`,
         ]
           .filter(Boolean)
-          .join('\n'),
-      )
+          .join('\n')
+      })
       .join('\n')
 
     return [
       '<?xml version="1.0" encoding="UTF-8"?>',
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
       entries,
       '</urlset>',
       '',

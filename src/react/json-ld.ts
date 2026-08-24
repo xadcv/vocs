@@ -3,7 +3,7 @@ import type * as Config from '../internal/config.js'
 type JsonLd = Record<string, unknown>
 
 export function from(options: from.Options): JsonLd {
-  const { canonical, description, frontmatter, siteName, siteUrl, title } = options
+  const { canonical, description, frontmatter, inLanguage, siteName, siteUrl, title } = options
   const author = toAuthor(frontmatter?.author)
   const date = frontmatter?.['date']
   const datePublished = typeof date === 'string' ? date : undefined
@@ -25,6 +25,7 @@ export function from(options: from.Options): JsonLd {
     ...(author ? { author } : {}),
     ...(datePublished ? { datePublished } : {}),
     ...(frontmatter?.lastModified ? { dateModified: frontmatter.lastModified } : {}),
+    ...(inLanguage ? { inLanguage } : {}),
     isPartOf: {
       '@type': 'WebSite',
       name: siteName,
@@ -38,6 +39,7 @@ export declare namespace from {
     canonical?: string | undefined
     description?: string | undefined
     frontmatter?: Config.Frontmatter | undefined
+    inLanguage?: string | undefined
     siteName: string
     siteUrl?: string | undefined
     title: string

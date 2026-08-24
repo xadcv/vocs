@@ -9,6 +9,7 @@ import type { Link, MetaFlat, Script, StringInnerContent, Style } from 'unhead/t
 import type { PluggableList } from 'unified'
 import type * as Changelog from './changelog.js'
 import type * as Feedback from './feedback.js'
+import * as I18n from './i18n.js'
 import * as Langs from './langs.js'
 import type * as McpSource from './mcp-source.js'
 import type * as Mdx from './mdx.js'
@@ -106,6 +107,7 @@ type SearchDocument = {
   category: string
   href: string
   id: string
+  locale?: string | undefined
   searchPriority: number | undefined
   subtitle: string
   text: string
@@ -127,7 +129,7 @@ export type SearchIndexOptions = Omit<MiniSearchOptions<SearchDocument>, 'fields
    * Document fields to store on search results during MiniSearch build and load.
    *
    * Extends the required Vocs UI fields. Required fields are always stored even when omitted:
-   * `category`, `href`, `searchPriority`, `subtitle`, `text`, `title`, `titles`, and `type`.
+   * `category`, `href`, `locale`, `searchPriority`, `subtitle`, `text`, `title`, `titles`, and `type`.
    * Runs on the server when Vocs builds the index, and is reused in the browser when loading the
    * serialized index.
    */
@@ -545,6 +547,26 @@ export type Config<partial extends boolean = false> = MaybePartial<
      */
     head?: HeadOptions | undefined
     /**
+     * Internationalization configuration.
+     *
+     * Organize translated pages under `pages/{locale}/` and use path-scoped
+     * sidebars (e.g. `sidebar: { '/en/': [...], '/fr/': [...] }`).
+     *
+     * @example
+     * ```ts
+     * export default defineConfig({
+     *   i18n: {
+     *     defaultLocale: 'en',
+     *     locales: [
+     *       { code: 'en', label: 'English' },
+     *       { code: 'fr', label: 'Français' },
+     *     ],
+     *   },
+     * })
+     * ```
+     */
+    i18n?: I18n.I18nConfig | undefined
+    /**
      * Whether Vocs includes JSON-LD structured data on pages.
      *
      * @default true
@@ -857,6 +879,7 @@ export function define(config: define.Options = {}): Config {
     colorScheme = 'light dark',
     description,
     head,
+    i18n: i18nOptions,
     iconUrl,
     jsonLd = true,
     logoUrl,
@@ -954,6 +977,7 @@ export function define(config: define.Options = {}): Config {
     _retriever: existingRetriever ?? retrieverResolved?.private,
     groupIcons: config.groupIcons,
     head,
+    i18n: I18n.from(i18nOptions),
     iconUrl,
     jsonLd,
     logoUrl,
@@ -1031,8 +1055,12 @@ export function define(config: define.Options = {}): Config {
 export declare namespace define {
   export type Options = UnionOmit<
     Config<true>,
-    'pagesDir' | 'feedback' | '_feedback' | '_localRetriever' | '_retriever'
+    'pagesDir' | 'feedback' | '_feedback' | '_localRetriever' | '_retriever' | 'i18n'
   > & {
+    /**
+     * Internationalization configuration.
+     */
+    i18n?: I18n.I18nOptions | undefined
     /**
      * Feedback adapter configuration.
      * Displays a "Was this helpful?" widget below the page outline.

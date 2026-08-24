@@ -52,6 +52,14 @@ export default defineConfig({
   editLink: {
     link: 'https://github.com/wevm/vocs/edit/next/playground/src/pages/:path',
   },
+  i18n: {
+    defaultLocale: 'en',
+    redirectRoot: false,
+    locales: [
+      { code: 'en', label: 'English' },
+      { code: 'fr', label: 'Français' },
+    ],
+  },
   logoUrl: {
     light: '/logo-tight-light.svg',
     dark: '/logo-tight-dark.svg',
@@ -106,6 +114,7 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Changelog', link: '/changelog', badge: 'New' },
       { text: 'Kitchen Sink', link: '/kitchen-sink' },
+      { text: 'Internationalization', link: '/en/i18n' },
       { text: 'REPL', link: '/repl', badge: { text: 'Beta', variant: 'warning' } },
       { text: 'None' },
       {
@@ -160,6 +169,8 @@ export default defineConfig({
       //   ],
       // },
     ],
+    '/en/': [{ text: 'Internationalization', link: '/en/i18n' }],
+    '/fr/': [{ text: 'Internationalisation', link: '/fr/i18n' }],
     '/sub/': {
       backLink: true,
       items: [

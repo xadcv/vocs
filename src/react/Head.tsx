@@ -4,6 +4,7 @@ import type { Meta, MetaFlat } from 'unhead/types'
 import { unpackMeta } from 'unhead/utils'
 import { useRouter } from 'waku'
 import type * as Config from '../internal/config.js'
+import * as I18n from '../internal/i18n.js'
 import * as JsonLd from './json-ld.js'
 import * as MdxPageContext from './MdxPageContext.js'
 import { useConfig } from './useConfig.js'
@@ -14,7 +15,8 @@ export function Head(props: Head.Props) {
   const { path: pathname } = useRouter()
   const { frontmatter } = MdxPageContext.use()
 
-  const { basePath, baseUrl, colorScheme, iconUrl, logoUrl, ogImageUrl, renderStrategy } = config
+  const { basePath, baseUrl, colorScheme, i18n, iconUrl, logoUrl, ogImageUrl, renderStrategy } =
+    config
 
   const staticScheme = colorScheme !== 'light dark'
 
@@ -77,12 +79,22 @@ export function Head(props: Head.Props) {
             canonical,
             description: descriptionSource,
             frontmatter,
+            inLanguage: I18n.getLocale(pathname, i18n)?.lang,
             siteName: config.title,
             siteUrl: baseUrl,
             title: titleSource ?? config.title,
           }),
         )
       : undefined
+
+  const alternates = I18n.getAlternates(pathname, i18n)
+  const hreflangLinks =
+    alternates && baseUrl
+      ? Object.entries(alternates).map(([hreflang, path]) => ({
+          href: `${baseUrl.replace(/\/$/, '')}${path}`,
+          hreflang,
+        }))
+      : []
 
   const metaTags = unpackMeta(
     compactMeta({
@@ -129,6 +141,21 @@ export function Head(props: Head.Props) {
 
           {/* Canonical */}
           {canonical && <link rel="canonical" href={canonical} />}
+
+          {/* Locale alternates */}
+          {hreflangLinks.map((link) => (
+            <link key={link.hreflang} href={link.href} hrefLang={link.hreflang} rel="alternate" />
+          ))}
+          {hreflangLinks.length > 0 && i18n && (
+            <link
+              href={
+                hreflangLinks.find((link) => link.hreflang === i18n.defaultLocale)?.href ??
+                hreflangLinks[0]?.href
+              }
+              hrefLang="x-default"
+              rel="alternate"
+            />
+          )}
 
           {/* Icons */}
           {icons && iconUrl && typeof iconUrl === 'string' && (

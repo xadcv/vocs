@@ -3,7 +3,9 @@
 import { useContext, useEffect, useState } from 'react'
 import { Link as WakuLink } from 'waku'
 import { unstable_RouterContext as WakuRouterContext } from 'waku/router/client'
+import * as I18n from '../internal/i18n.js'
 import * as Path from '../internal/path.js'
+import { useConfig } from './useConfig.js'
 
 const viewportPrefetchDelayMs = 2_000
 
@@ -60,6 +62,7 @@ export function Link(props: Link.Props) {
   const { to, unstable_prefetchOnEnter = true, unstable_prefetchOnView = true, ...rest } = props
   const router = useContext(WakuRouterContext)
   const routerPath = router?.route.path
+  const config = useConfig()
   const isExternal = Path.isExternal(props.to)
   const prefetchOnView = useViewportPrefetchReady(
     Boolean(unstable_prefetchOnView) && !isExternal && routerPath !== undefined,
@@ -68,20 +71,37 @@ export function Link(props: Link.Props) {
   if (isExternal) return <a {...rest} href={props.to} rel="noopener noreferrer" target="_blank" />
 
   const [before, after] = (props.to || '').split('#')
-  const resolvedTo = `${before ? before : (routerPath ?? '')}${after ? `#${after}` : ''}`
-  if (routerPath === undefined) return <a {...rest} href={resolvedTo || props.to} />
+  const resolvedBase = before ? before : (routerPath ?? '')
+  const resolvedTo = localizeInternalLink(resolvedBase, routerPath, config.i18n)
+  const href = `${resolvedTo}${after ? `#${after}` : ''}`
+  if (routerPath === undefined) return <a {...rest} href={href || props.to} />
   return (
     <WakuLink
       {...rest}
-      to={resolvedTo}
+      to={href}
       unstable_prefetchOnEnter={unstable_prefetchOnEnter}
       unstable_prefetchOnView={prefetchOnView}
     />
   )
 }
 
-export namespace Link {
+export declare namespace Link {
   export type Props = Omit<React.ComponentProps<typeof WakuLink>, 'to'> & {
     to: string
   }
+}
+
+function localizeInternalLink(
+  target: string,
+  routerPath: string | undefined,
+  i18n: I18n.I18nConfig | undefined,
+) {
+  if (!i18n || !target.startsWith('/') || Path.isExternal(target)) return target
+
+  const currentLocale = routerPath ? I18n.getLocale(routerPath, i18n)?.code : i18n.defaultLocale
+  if (!currentLocale) return target
+
+  const localized = I18n.localizePath(target, currentLocale, i18n)
+  if (I18n.parseLocale(target, i18n)) return target
+  return localized
 }

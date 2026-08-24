@@ -10,6 +10,7 @@ import * as Path from '../../internal/path.js'
 import * as Sidebar_core from '../../internal/sidebar.js'
 import { Badge } from '../Badge.js'
 import { Link } from '../Link.js'
+import { useLocale } from '../useLocale.js'
 import { useSidebar } from '../useSidebar.js'
 
 const maxDepth = 5
@@ -151,12 +152,13 @@ export function Sidebar(props: Sidebar.Props) {
 
 function BackLink(props: { onNavigate?: (() => void) | undefined }) {
   const { onNavigate } = props
+  const { localizePath } = useLocale()
   return (
     <Link
       className="vocs:flex vocs:items-center vocs:gap-1.5 vocs:text-secondary vocs:hover:text-heading vocs:mb-4 vocs:-ml-0.5"
       data-v-sidebar-back-link
       onClick={onNavigate}
-      to="/"
+      to={localizePath('/')}
     >
       <LucideArrowLeft className="vocs:size-4" />
       <span>Back</span>

@@ -8,6 +8,7 @@ import * as CopyForAi from './internal/CopyForAi.client.js'
 import * as EditLink from './internal/EditLink.client.js'
 import * as Feedback from './internal/Feedback.client.js'
 import * as LastUpdated from './internal/LastUpdated.client.js'
+import * as LocaleSwitcher from './internal/LocaleSwitcher.client.js'
 import * as MobileNav from './internal/MobileNav.js'
 import * as Outline from './internal/Outline.js'
 import * as Pagination from './internal/Pagination.client.js'
@@ -37,7 +38,7 @@ export function Main(props: Main.Props) {
     showLogo,
     showOutline,
   } = useLayout()
-  const { colorScheme } = useConfig()
+  const { colorScheme, i18n } = useConfig()
   const { Footer, OutlineFooter, SidebarHeader } = useSlots()
 
   const showThemeToggle = colorScheme === 'light dark'
@@ -135,6 +136,8 @@ export function Main(props: Main.Props) {
           </div>
 
           <TopNav.TopNav className="vocs:max-lg:hidden vocs:px-2" />
+
+          {i18n && <LocaleSwitcher.LocaleSwitcher className="vocs:max-lg:hidden" />}
 
           <div className="vocs:lg:hidden vocs:flex vocs:items-center vocs:px-3 vocs:gap-1">
             {showSearch && (
